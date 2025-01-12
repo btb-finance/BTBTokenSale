@@ -4,9 +4,14 @@ This project implements a token vesting system for the BTB Token on Optimism Sep
 
 ## Deployed Contracts (Optimism Sepolia)
 
-- **BTB Token**: [`0xdda696FAbB67F70064e86fC340b19C23225b3EAe`](https://sepolia-optimism.etherscan.io/address/0xdda696FAbB67F70064e86fC340b19C23225b3EAe#code)
-- **TokenSale**: [`0x2B544ac963DC19E8474021edf3C56e5e3FB8D09d`](https://sepolia-optimism.etherscan.io/address/0x2B544ac963DC19E8474021edf3C56e5e3FB8D09d#code)
-- **VestingNFT**: [`0x48110ef4449A4292172bd6bc88F77dcd507622d9`](https://sepolia-optimism.etherscan.io/address/0x48110ef4449A4292172bd6bc88F77dcd507622d9#code)
+- **BTB Token**: [`0x3Bc21B0B248A0B5CB45A6DD23f5d689fD9fd0B6c`](https://sepolia-optimism.etherscan.io/address/0x3Bc21B0B248A0B5CB45A6DD23f5d689fD9fd0B6c#code)
+- **TokenSale**: [`0x2DE5bedF629994149F3ed4902E6189bfC60444ed`](https://sepolia-optimism.etherscan.io/address/0x2DE5bedF629994149F3ed4902E6189bfC60444ed#code)
+- **VestingNFT**: [`0x785A5128EF5eF59A8c53f7f578ce24F374b3497D`](https://sepolia-optimism.etherscan.io/address/0x785A5128EF5eF59A8c53f7f578ce24F374b3497D#code)
+
+## Latest Deployment (January 12, 2025)
+- Added comprehensive error messages
+- Improved security in VestingNFT contract
+- Fixed potential claimed amount manipulation vulnerability
 
 ## Features
 
@@ -22,6 +27,38 @@ This project implements a token vesting system for the BTB Token on Optimism Sep
   - Transferable ownership
   - Visual representation of vesting status
 
+## Token Purchase Guide
+
+### Instant Purchase
+- Price: 0.000001 ETH per token
+- Minimum purchase: 0.000001 ETH (1 token)
+- No maximum limit
+- Tokens received instantly
+- Example purchases:
+  - 0.000001 ETH = 1 token
+  - 0.00001 ETH = 10 tokens
+  - 0.0001 ETH = 100 tokens
+
+### Vesting Purchase
+- Price: 0.0000005 ETH per token (50% discount)
+- Minimum purchase: 0.0000005 ETH (1 token)
+- No maximum limit
+- 12-month linear vesting
+- NFT represents vesting schedule
+- Example purchases:
+  - 0.0000005 ETH = 1 token vested
+  - 0.000005 ETH = 10 tokens vested
+  - 0.00005 ETH = 100 tokens vested
+
+### Price Calculation
+The token amount is calculated proportionally to the ETH sent:
+```
+Token Amount = (ETH sent * 1e18) / Token Price
+```
+- Sending more ETH will get you proportionally more tokens
+- The price per token remains constant
+- All purchases are processed at the same rate
+
 ## Project Structure
 
 ```
@@ -30,16 +67,13 @@ This project implements a token vesting system for the BTB Token on Optimism Sep
 │   ├── TokenSale.sol     # Handles token sales and vesting
 │   └── VestingNFT.sol    # NFT contract for vesting schedules
 ├── scripts/
-│   ├── deploy-token.ts           # Deploys BTB token
-│   ├── deploy-token-sale.ts      # Deploys sale and NFT contracts
-│   ├── check-nft-zero.ts         # Checks NFT #0 details
-│   ├── claim-vested.ts           # Claims vested tokens
-│   └── test-all-operations.ts    # Tests all main functions
-├── test/
-│   ├── AdminFunctions.test.ts    # Tests admin functions
-│   ├── InstantPurchase.test.ts   # Tests instant buying
-│   ├── VestingPurchase.test.ts   # Tests vesting purchases
-│   └── helpers.ts                # Test helper functions
+│   ├── deploy.ts                 # Deploys and verifies all contracts
+│   ├── setup-sale.ts            # Transfers tokens to sale contract
+│   ├── test-deployed.ts         # Tests basic contract functionality
+│   ├── test-purchases.ts        # Tests token purchases and vesting
+│   ├── test-admin-withdrawals.ts # Tests admin withdrawal functions
+│   ├── interact.ts              # General contract interaction script
+│   └── claim-vested.ts          # Claims vested tokens
 ```
 
 ## Setup
@@ -71,34 +105,98 @@ npx hardhat test test/VestingPurchase.test.ts
 npx hardhat test test/AdminFunctions.test.ts
 ```
 
-## Deployment
+## Available Scripts
 
-1. Deploy BTB Token:
+### Deployment
 ```bash
-npx hardhat run scripts/deploy-token.ts --network optimisticSepolia
+# Deploy and verify all contracts
+npx hardhat run scripts/deploy.ts --network optimisticSepolia
+
+# Setup sale contract with tokens
+npx hardhat run scripts/setup-sale.ts --network optimisticSepolia
 ```
 
-2. Deploy Sale Contracts:
+### Testing Deployed Contracts
 ```bash
-npx hardhat run scripts/deploy-token-sale.ts --network optimisticSepolia
+# Test basic contract functionality
+npx hardhat run scripts/test-deployed.ts --network optimisticSepolia
+
+# Test token purchases and vesting
+npx hardhat run scripts/test-purchases.ts --network optimisticSepolia
+
+# Test admin withdrawals
+npx hardhat run scripts/test-admin-withdrawals.ts --network optimisticSepolia
 ```
 
-## Usage Scripts
-
-1. Buy Tokens Instantly:
+### User Operations
 ```bash
-npx hardhat run scripts/test-all-operations.ts --network optimisticSepolia
-```
+# General contract interaction
+npx hardhat run scripts/interact.ts --network optimisticSepolia
 
-2. Check NFT Details:
-```bash
-npx hardhat run scripts/check-nft-zero.ts --network optimisticSepolia
-```
-
-3. Claim Vested Tokens:
-```bash
+# Claim vested tokens
 npx hardhat run scripts/claim-vested.ts --network optimisticSepolia
 ```
+
+## Script Details
+
+### deploy.ts
+- Deploys BTB Token, TokenSale, and VestingNFT contracts
+- Verifies all contracts on Etherscan
+- Waits 30 seconds between deployment and verification
+- Outputs all contract addresses
+
+### setup-sale.ts
+- Transfers 100,000 BTB tokens to the sale contract
+- Verifies token balances before and after transfer
+- Required before users can purchase tokens
+
+### test-deployed.ts
+- Verifies contract connections and configurations
+- Checks token prices and balances
+- Tests security features
+- Validates VestingNFT setup
+
+### test-purchases.ts
+- Tests instant token purchase (0.000001 ETH per token)
+- Tests vesting purchase (0.0000005 ETH per token)
+- Creates and validates vesting NFT
+- Claims vested tokens
+- Checks all balances and schedules
+
+### test-admin-withdrawals.ts
+- Tests ETH withdrawal by admin
+- Tests token withdrawal by admin
+- Verifies balance changes
+- Checks security permissions
+
+### interact.ts
+- General-purpose interaction script
+- Shows contract information
+- Displays user balances
+- Tests token approvals and transfers
+
+### claim-vested.ts
+- Claims available vested tokens
+- Shows vesting schedule details
+- Displays claimed amounts
+- Updates NFT metadata
+
+## Security Features
+
+1. Access Control
+   - Only owner can withdraw ETH and tokens
+   - Only TokenSale can update vesting schedules
+   - NFT ownership verification for claims
+
+2. Vesting Protection
+   - Cannot decrease claimed amounts
+   - Cannot claim more than total allocation
+   - Time-based linear vesting
+
+3. Error Handling
+   - Detailed error messages
+   - Balance checks
+   - Ownership validation
 
 ## Contract Interaction Guide
 
@@ -145,15 +243,6 @@ The test suite covers:
 5. Token claiming process
 6. Admin functions and security
 7. Edge cases and error conditions
-
-## Security Features
-
-- Reentrancy protection using OpenZeppelin's ReentrancyGuard
-- Ownable pattern for admin functions
-- Safe math operations
-- Event emission for tracking
-- NFT-based vesting schedule representation
-- Linear vesting implementation
 
 ## License
 

@@ -20,23 +20,29 @@ contract TokenSale is Ownable, ReentrancyGuard {
     event TokensWithdrawn(address admin, uint256 amount);
 
     constructor(address _token) Ownable(msg.sender) {
+        require(_token != address(0), "Token address cannot be zero");
         btbToken = IERC20(_token);
         vestingNFT = new VestingNFT();
+        vestingNFT.setTokenSaleContract(address(this));
     }
 
     function buyTokensInstant() external payable nonReentrant {
-        require(msg.value >= INSTANT_PRICE, "Insufficient payment");
+        require(msg.value >= INSTANT_PRICE, "Payment must be at least 0.000001 ETH");
         
         uint256 tokenAmount = (msg.value * 1e18) / INSTANT_PRICE;
-        require(btbToken.transfer(msg.sender, tokenAmount), "Transfer failed");
+        require(tokenAmount > 0, "Calculated token amount is zero");
+        require(btbToken.balanceOf(address(this)) >= tokenAmount, "Insufficient tokens in sale contract");
+        require(btbToken.transfer(msg.sender, tokenAmount), "Token transfer failed");
         
         emit TokensPurchased(msg.sender, tokenAmount, false);
     }
 
     function buyTokensVesting() external payable nonReentrant {
-        require(msg.value >= VESTING_PRICE, "Insufficient payment");
+        require(msg.value >= VESTING_PRICE, "Payment must be at least 0.0000005 ETH");
         
         uint256 tokenAmount = (msg.value * 1e18) / VESTING_PRICE;
+        require(tokenAmount > 0, "Calculated token amount is zero");
+        require(btbToken.balanceOf(address(this)) >= tokenAmount, "Insufficient tokens in sale contract");
         
         // Create vesting schedule
         uint256 startTime = block.timestamp;
@@ -50,48 +56,49 @@ contract TokenSale is Ownable, ReentrancyGuard {
 
     function claimVestedTokens(uint256 nftId) external nonReentrant {
         VestingNFT.VestingSchedule memory schedule = vestingNFT.getVestingSchedule(nftId);
-        require(schedule.isActive, "Vesting schedule not active");
-        require(vestingNFT.ownerOf(nftId) == msg.sender, "Not NFT owner");
+        require(schedule.isActive, "Vesting schedule is not active");
+        require(vestingNFT.ownerOf(nftId) == msg.sender, "Caller is not the NFT owner");
+        require(block.timestamp >= schedule.startTime, "Vesting has not started yet");
         
         uint256 vestedAmount = calculateVestedAmount(schedule);
         uint256 claimableAmount = vestedAmount - schedule.claimedAmount;
-        require(claimableAmount > 0, "No tokens to claim");
+        require(claimableAmount > 0, "No tokens available to claim at this time");
+        require(btbToken.balanceOf(address(this)) >= claimableAmount, "Insufficient tokens in sale contract");
 
         vestingNFT.updateClaimedAmount(nftId, vestedAmount);
-        require(btbToken.transfer(msg.sender, claimableAmount), "Transfer failed");
+        require(btbToken.transfer(msg.sender, claimableAmount), "Token transfer failed");
         
         emit TokensClaimed(msg.sender, claimableAmount);
     }
 
     function calculateVestedAmount(VestingNFT.VestingSchedule memory schedule) public view returns (uint256) {
+        if (block.timestamp < schedule.startTime) {
+            return 0;
+        }
         if (block.timestamp >= schedule.endTime) {
             return schedule.totalAmount;
         }
         
         uint256 timeElapsed = block.timestamp - schedule.startTime;
-        uint256 vestingPeriod = schedule.endTime - schedule.startTime;
+        uint256 vestingDuration = schedule.endTime - schedule.startTime;
+        require(vestingDuration > 0, "Invalid vesting duration");
         
-        return (schedule.totalAmount * timeElapsed) / vestingPeriod;
+        return (schedule.totalAmount * timeElapsed) / vestingDuration;
     }
 
-    // Admin functions to withdraw ETH and tokens
-    function withdrawEth() external onlyOwner {
+    function withdrawETH() external onlyOwner {
         uint256 balance = address(this).balance;
-        require(balance > 0, "No ETH to withdraw");
-        
-        (bool success, ) = owner().call{value: balance}("");
-        require(success, "ETH withdrawal failed");
-        
+        require(balance > 0, "No ETH available to withdraw");
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "ETH transfer failed");
         emit EthWithdrawn(msg.sender, balance);
     }
 
     function withdrawTokens(uint256 amount) external onlyOwner {
-        require(amount > 0, "Amount must be greater than 0");
+        require(amount > 0, "Amount must be greater than zero");
         uint256 balance = btbToken.balanceOf(address(this));
         require(balance >= amount, "Insufficient token balance");
-        
-        require(btbToken.transfer(owner(), amount), "Token withdrawal failed");
-        
+        require(btbToken.transfer(msg.sender, amount), "Token transfer failed");
         emit TokensWithdrawn(msg.sender, amount);
     }
 

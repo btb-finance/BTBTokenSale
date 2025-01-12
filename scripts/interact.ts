@@ -2,6 +2,13 @@ import { ethers } from "hardhat";
 import { BTBToken, TokenSale, VestingNFT } from "../types/contracts";
 
 async function main() {
+  // Check network first
+  const network = await ethers.provider.getNetwork();
+  console.log("Connected to network:", {
+    name: network.name,
+    chainId: network.chainId
+  });
+
   // Contract addresses on Optimism Sepolia
   const BTB_TOKEN_ADDRESS = "0x4929858D64af3C7a626cE1C4cc3b546b03240247";
   const TOKEN_SALE_ADDRESS = "0x06FEED5b0833F579940400D238c595746AE97F78";
@@ -15,6 +22,31 @@ async function main() {
   // Get signers
   const [owner] = await ethers.getSigners();
   console.log("Interacting with contracts using address:", owner.address);
+
+  // Basic contract checks
+  console.log("\nChecking contract basic info:");
+  try {
+    const tokenName = await btbToken.name();
+    const tokenSymbol = await btbToken.symbol();
+    console.log("Token Name:", tokenName);
+    console.log("Token Symbol:", tokenSymbol);
+  } catch (error) {
+    console.log("Error accessing BTB Token:", error.message);
+  }
+
+  try {
+    const salePrice = await tokenSale.tokenPrice();
+    console.log("Token Sale Price:", ethers.formatEther(salePrice), "ETH");
+  } catch (error) {
+    console.log("Error accessing Token Sale:", error.message);
+  }
+
+  try {
+    const nftName = await vestingNFT.name();
+    console.log("NFT Collection Name:", nftName);
+  } catch (error) {
+    console.log("Error accessing Vesting NFT:", error.message);
+  }
 
   // Check balances
   const tokenBalance = await btbToken.balanceOf(owner.address);
